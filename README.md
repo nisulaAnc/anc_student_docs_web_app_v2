@@ -21,7 +21,7 @@ A PHP-based student registration and document submission portal for ANC. The app
 
 ## Setup
 
-1. Place the project in your web root, e.g. `C:\xampp\htdocs\anc_student_docs`.
+1. Place the project in your web root, e.g. `C:\xampp\htdocs\anc_student_docs_web_app_v2`.
 2. Run Composer install:
 
 ```powershell

@@ -1,4 +1,4 @@
-# ANC Student Docs
+# ANC Student Docs - Version 2.0
 
 A PHP-based student registration and document submission portal for ANC. The app uses Google Sheets as the backend database, sends email notifications via SMTP, and routes student registration through counsellor approval and OTP verification.
 

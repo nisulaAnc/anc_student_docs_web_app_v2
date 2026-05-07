@@ -21,11 +21,11 @@ A PHP-based student registration and document submission portal for ANC. The app
 
 ## Setup
 
-1. Place the project in your web root, e.g. `C:\xampp\htdocs\anc_student_docs`.
+1. Place the project in your web root, e.g. `C:\xampp\htdocs\anc_student_docs_web_app_v2`.
 2. Run Composer install:
 
 ```powershell
-cd c:\xampp\htdocs\anc_student_docs
+cd c:\xampp\htdocs\anc_student_docs_web_app_v2
 composer install
 ```
 
@@ -72,7 +72,7 @@ The service account must have access to the spreadsheet.
 Open the project in your browser at:
 
 ```text
-https://localhost/ANC_Student_Docs/index.php
+https://localhost/anc_student_docs_web_app_v2/index.php
 ```
 
 Use the form to register a student, send a counsellor link, and continue through the workflow.

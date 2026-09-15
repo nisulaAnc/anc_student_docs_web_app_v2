@@ -34,8 +34,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         'lifetime' => 3600,
         'path' => '/',
-        'domain' => '',  // Empty for localhost
-        'secure' => false,  // false for localhost (no HTTPS)
+        'domain' => '',  
+        'secure' => false, 
         'httponly' => true,
         'samesite' => 'Lax'
     ]);
@@ -57,6 +57,13 @@ define('SMTP_USERNAME', env('SMTP_USERNAME', 'nisula@ancedu.com'));
 define('SMTP_PASSWORD', env('SMTP_PASSWORD', 'ylwd sbzg owpj rihb'));
 define('FROM_EMAIL',    env('FROM_EMAIL', 'nisula@ancedu.com'));
 define('FROM_NAME',     env('FROM_NAME', 'ANC Student Docs'));
+
+// Database settings
+define('DB_HOST', env('DB_HOST', 'localhost'));
+define('DB_NAME', env('DB_NAME', 'anc_student_docs'));
+define('DB_USER', env('DB_USER', 'root'));
+define('DB_PASS', env('DB_PASS', ''));
+
 
 // Google Sheet Tab Names
 // Master data (read-only by the app)

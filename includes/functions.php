@@ -2,7 +2,28 @@
 // Include product-document mapping
 require_once __DIR__ . '/product_documents.php';
 
+/**
+ * Establish a secure connection to the MySQL database.
+ */
+function getDBConnection(): PDO {
+    static $pdo = null;
+    if ($pdo === null) {
+        try {
+            $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+            ]);
+        } catch (PDOException $e) {
+            die("Database connection failed: " . $e->getMessage());
+        }
+    }
+    return $pdo;
+}
+
 // GOOGLE SHEETS
+
 
 function getGoogleSheetsService(): \Google\Service\Sheets {
     $client = new \Google\Client();
@@ -167,7 +188,28 @@ function getProductCodeFromLabel(string $label): ?string {
  *   E=counsellor_name | F=counsellor_email | G=created_at | H=status |
  *   I=otp | J=otp_time | K=phase
  */
+/**
+ * CF_Tokens columns mapping helper for MySQL
+ */
+function getCounsellorTokenColumnName(int $colIndex): ?string {
+    $map = [
+        1 => 'cf_number',
+        2 => 'student_name',
+        3 => 'student_email',
+        4 => 'counsellor_name',
+        5 => 'counsellor_email',
+        6 => 'created_at',
+        7 => 'status',
+        8 => 'otp',
+        9 => 'otp_time',
+        10 => 'phase'
+    ];
+    return $map[$colIndex] ?? null;
+}
+
 function saveCounsellorToken(string $token, array $data): void {
+    $now = date('Y-m-d H:i:s');
+    // 1. Google Sheets
     sheetAppend(SHEET_CF_TOKENS, [
         $token,
         $data['cf_number'],
@@ -175,12 +217,29 @@ function saveCounsellorToken(string $token, array $data): void {
         $data['student_email'],
         $data['counsellor_name'],
         $data['counsellor_email'],
-        date('Y-m-d H:i:s'),
+        $now,
         'pending',      // H = status
         '',             // I = otp
         '',             // J = otp_time
         'otp_request',  // K = phase
     ]);
+
+    // 2. MySQL
+    try {
+        $db = getDBConnection();
+        $stmt = $db->prepare("INSERT INTO cf_tokens (token, cf_number, student_name, student_email, counsellor_name, counsellor_email, created_at, status, otp, otp_time, phase) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', '', '', 'otp_request')");
+        $stmt->execute([
+            $token,
+            $data['cf_number'],
+            $data['name'],
+            $data['student_email'],
+            $data['counsellor_name'],
+            $data['counsellor_email'],
+            $now
+        ]);
+    } catch (Exception $e) {
+        error_log("DB insert error (cf_tokens): " . $e->getMessage());
+    }
 }
 
 function getCounsellorToken(string $token): ?array {
@@ -204,22 +263,48 @@ function getCounsellorToken(string $token): ?array {
 }
 
 function updateCounsellorTokenField(string $token, int $colIndex, string $value): void {
+    // 1. Google Sheets
     $found = sheetFindRow(SHEET_CF_TOKENS, 0, $token);
-    if (!$found) return;
-    $row = $found['row'];
-    while (count($row) <= $colIndex) $row[] = '';
-    $row[$colIndex] = $value;
-    sheetUpdateRow(SHEET_CF_TOKENS, $found['rowNumber'], $row);
+    if ($found) {
+        $row = $found['row'];
+        while (count($row) <= $colIndex) $row[] = '';
+        $row[$colIndex] = $value;
+        sheetUpdateRow(SHEET_CF_TOKENS, $found['rowNumber'], $row);
+    }
+
+    // 2. MySQL
+    $colName = getCounsellorTokenColumnName($colIndex);
+    if ($colName) {
+        try {
+            $db = getDBConnection();
+            $stmt = $db->prepare("UPDATE cf_tokens SET `{$colName}` = ? WHERE token = ?");
+            $stmt->execute([$value, $token]);
+        } catch (Exception $e) {
+            error_log("DB update error (cf_tokens): " . $e->getMessage());
+        }
+    }
 }
 
 function setCounsellorOTP(string $token, string $otp): void {
+    $nowTime = (string) time();
+    // 1. Google Sheets
     $found = sheetFindRow(SHEET_CF_TOKENS, 0, $token);
-    if (!$found) return;
-    $row = $found['row'];
-    while (count($row) < 11) $row[] = '';
-    $row[8] = $otp;
-    $row[9] = (string) time();
-    sheetUpdateRow(SHEET_CF_TOKENS, $found['rowNumber'], $row);
+    if ($found) {
+        $row = $found['row'];
+        while (count($row) < 11) $row[] = '';
+        $row[8] = $otp;
+        $row[9] = $nowTime;
+        sheetUpdateRow(SHEET_CF_TOKENS, $found['rowNumber'], $row);
+    }
+
+    // 2. MySQL
+    try {
+        $db = getDBConnection();
+        $stmt = $db->prepare("UPDATE cf_tokens SET otp = ?, otp_time = ? WHERE token = ?");
+        $stmt->execute([$otp, $nowTime, $token]);
+    } catch (Exception $e) {
+        error_log("DB otp update error (cf_tokens): " . $e->getMessage());
+    }
 }
 
 function setCounsellorPhase(string $token, string $phase): void {
@@ -227,22 +312,50 @@ function setCounsellorPhase(string $token, string $phase): void {
 }
 
 function markCounsellorTokenUsed(string $token): void {
+    // 1. Google Sheets
     $found = sheetFindRow(SHEET_CF_TOKENS, 0, $token);
-    if (!$found) return;
-    $row = $found['row'];
-    while (count($row) < 11) $row[] = '';
-    $row[7]  = 'used';
-    $row[10] = 'done';
-    sheetUpdateRow(SHEET_CF_TOKENS, $found['rowNumber'], $row);
+    if ($found) {
+        $row = $found['row'];
+        while (count($row) < 11) $row[] = '';
+        $row[7]  = 'used';
+        $row[10] = 'done';
+        sheetUpdateRow(SHEET_CF_TOKENS, $found['rowNumber'], $row);
+    }
+
+    // 2. MySQL
+    try {
+        $db = getDBConnection();
+        $stmt = $db->prepare("UPDATE cf_tokens SET status = 'used', phase = 'done' WHERE token = ?");
+        $stmt->execute([$token]);
+    } catch (Exception $e) {
+        error_log("DB status update error (cf_tokens): " . $e->getMessage());
+    }
 }
 
+
 /**
- * Student_Tokens columns:
- *   A=token | B=cf_number | C=student_name | D=student_email |
- *   E=counsellor_name | F=program | G=product_code | H=created_at |
- *   I=status | J=otp | K=otp_time | L=phase
+ * Student_Tokens columns mapping helper for MySQL
  */
+function getStudentTokenColumnName(int $colIndex): ?string {
+    $map = [
+        1 => 'cf_number',
+        2 => 'student_name',
+        3 => 'student_email',
+        4 => 'counsellor_name',
+        5 => 'program',
+        6 => 'product_code',
+        7 => 'created_at',
+        8 => 'status',
+        9 => 'otp',
+        10 => 'otp_time',
+        11 => 'phase'
+    ];
+    return $map[$colIndex] ?? null;
+}
+
 function saveStudentToken(string $token, array $data): void {
+    $now = date('Y-m-d H:i:s');
+    // 1. Google Sheets
     sheetAppend(SHEET_STUDENT_TOKENS, [
         $token,
         $data['cf_number'],
@@ -251,12 +364,30 @@ function saveStudentToken(string $token, array $data): void {
         $data['counsellor_name'],
         $data['program'],
         $data['product_code'] ?? '',
-        date('Y-m-d H:i:s'),
+        $now,
         'pending',
         '',
         '',
         'otp_request',
     ]);
+
+    // 2. MySQL
+    try {
+        $db = getDBConnection();
+        $stmt = $db->prepare("INSERT INTO student_tokens (token, cf_number, student_name, student_email, counsellor_name, program, product_code, created_at, status, otp, otp_time, phase) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', '', '', 'otp_request')");
+        $stmt->execute([
+            $token,
+            $data['cf_number'],
+            $data['name'],
+            $data['student_email'],
+            $data['counsellor_name'],
+            $data['program'],
+            $data['product_code'] ?? '',
+            $now
+        ]);
+    } catch (Exception $e) {
+        error_log("DB insert error (student_tokens): " . $e->getMessage());
+    }
 }
 
 function getStudentToken(string $token): ?array {
@@ -281,22 +412,48 @@ function getStudentToken(string $token): ?array {
 }
 
 function updateStudentTokenField(string $token, int $colIndex, string $value): void {
+    // 1. Google Sheets
     $found = sheetFindRow(SHEET_STUDENT_TOKENS, 0, $token);
-    if (!$found) return;
-    $row = $found['row'];
-    while (count($row) <= $colIndex) $row[] = '';
-    $row[$colIndex] = $value;
-    sheetUpdateRow(SHEET_STUDENT_TOKENS, $found['rowNumber'], $row);
+    if ($found) {
+        $row = $found['row'];
+        while (count($row) <= $colIndex) $row[] = '';
+        $row[$colIndex] = $value;
+        sheetUpdateRow(SHEET_STUDENT_TOKENS, $found['rowNumber'], $row);
+    }
+
+    // 2. MySQL
+    $colName = getStudentTokenColumnName($colIndex);
+    if ($colName) {
+        try {
+            $db = getDBConnection();
+            $stmt = $db->prepare("UPDATE student_tokens SET `{$colName}` = ? WHERE token = ?");
+            $stmt->execute([$value, $token]);
+        } catch (Exception $e) {
+            error_log("DB update error (student_tokens): " . $e->getMessage());
+        }
+    }
 }
 
 function setStudentOTP(string $token, string $otp): void {
+    $nowTime = (string) time();
+    // 1. Google Sheets
     $found = sheetFindRow(SHEET_STUDENT_TOKENS, 0, $token);
-    if (!$found) return;
-    $row = $found['row'];
-    while (count($row) < 12) $row[] = '';
-    $row[9]  = $otp;
-    $row[10] = (string) time();
-    sheetUpdateRow(SHEET_STUDENT_TOKENS, $found['rowNumber'], $row);
+    if ($found) {
+        $row = $found['row'];
+        while (count($row) < 12) $row[] = '';
+        $row[9]  = $otp;
+        $row[10] = $nowTime;
+        sheetUpdateRow(SHEET_STUDENT_TOKENS, $found['rowNumber'], $row);
+    }
+
+    // 2. MySQL
+    try {
+        $db = getDBConnection();
+        $stmt = $db->prepare("UPDATE student_tokens SET otp = ?, otp_time = ? WHERE token = ?");
+        $stmt->execute([$otp, $nowTime, $token]);
+    } catch (Exception $e) {
+        error_log("DB otp update error (student_tokens): " . $e->getMessage());
+    }
 }
 
 function setStudentPhase(string $token, string $phase): void {
@@ -304,14 +461,26 @@ function setStudentPhase(string $token, string $phase): void {
 }
 
 function markStudentTokenUsed(string $token): void {
+    // 1. Google Sheets
     $found = sheetFindRow(SHEET_STUDENT_TOKENS, 0, $token);
-    if (!$found) return;
-    $row = $found['row'];
-    while (count($row) < 12) $row[] = '';
-    $row[8]  = 'used';
-    $row[11] = 'done';
-    sheetUpdateRow(SHEET_STUDENT_TOKENS, $found['rowNumber'], $row);
+    if ($found) {
+        $row = $found['row'];
+        while (count($row) < 12) $row[] = '';
+        $row[8]  = 'used';
+        $row[11] = 'done';
+        sheetUpdateRow(SHEET_STUDENT_TOKENS, $found['rowNumber'], $row);
+    }
+
+    // 2. MySQL
+    try {
+        $db = getDBConnection();
+        $stmt = $db->prepare("UPDATE student_tokens SET status = 'used', phase = 'done' WHERE token = ?");
+        $stmt->execute([$token]);
+    } catch (Exception $e) {
+        error_log("DB status update error (student_tokens): " . $e->getMessage());
+    }
 }
+
 
 /**
  * Appends a submission row.
@@ -322,8 +491,9 @@ function markStudentTokenUsed(string $token): void {
  * Fixed: now writes ALL dynamic doc paths instead of only 3.
  */
 function appendSubmission(array $data): void {
+    $now = date('Y-m-d H:i:s');
     $row = [
-        date('Y-m-d H:i:s'),
+        $now,
         $data['token']              ?? '',
         $data['cf_number']          ?? '',
         $data['student_name']       ?? '',
@@ -345,10 +515,43 @@ function appendSubmission(array $data): void {
         $row[] = $path;
     }
 
-    $row[] = $data['agreement_path'] ?? '';
+    $agreementPath = $data['agreement_path'] ?? '';
+    $row[] = $agreementPath;
 
+    // 1. Google Sheets
     sheetAppend(SHEET_SUBMISSIONS, $row);
+
+    // 2. MySQL
+    try {
+        $db = getDBConnection();
+        $stmt = $db->prepare("INSERT INTO submissions (timestamp, token, cf_number, student_name, student_email, program_level, degree_description, product_code, agreement_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([
+            $now,
+            $data['token']              ?? '',
+            $data['cf_number']          ?? '',
+            $data['student_name']       ?? '',
+            $data['student_email']      ?? '',
+            $data['program_level']      ?? '',
+            $data['degree_description'] ?? '',
+            $data['product_code']       ?? '',
+            $agreementPath
+        ]);
+
+        $submissionId = $db->lastInsertId();
+
+        if ($submissionId) {
+            $stmtDoc = $db->prepare("INSERT INTO submission_documents (submission_id, document_slot, file_path) VALUES (?, ?, ?)");
+            foreach ($docPaths as $index => $path) {
+                if ($path !== '') {
+                    $stmtDoc->execute([$submissionId, "doc" . $index, $path]);
+                }
+            }
+        }
+    } catch (Exception $e) {
+        error_log("DB insert error (submissions): " . $e->getMessage());
+    }
 }
+
 
 function storeUploadedFile(array $file, string $tokenPrefix, string $slot, string $baseName = ''): string {
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {

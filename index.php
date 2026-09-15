@@ -361,7 +361,7 @@ input::placeholder{color:var(--muted);font-weight:400;}
             <label class="label" for="cf_number">CF Number</label>
             <div class="input-wrap">
               <svg class="ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/></svg>
-              <input type="text" id="cf_number" name="cf_number" placeholder="e.g. CF-2024-001" required
+              <input type="text" id="cf_number" name="cf_number" placeholder="e.g. CFN-000001" required
                 value="<?= htmlspecialchars($_POST['cf_number'] ?? '') ?>">
             </div>
           </div>
@@ -369,7 +369,7 @@ input::placeholder{color:var(--muted);font-weight:400;}
             <label class="label" for="name">Full Name</label>
             <div class="input-wrap">
               <svg class="ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-              <input type="text" id="name" name="name" placeholder="As per IC / Passport" required
+              <input type="text" id="name" name="name" placeholder="As per your NIC or Passport" required
                 value="<?= htmlspecialchars($_POST['name'] ?? '') ?>">
             </div>
           </div>
@@ -419,7 +419,7 @@ input::placeholder{color:var(--muted);font-weight:400;}
         <div style="margin-top:8px;">
           <button class="btn" type="submit">
             Send Link to Counsellor
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <!-- <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg> -->
           </button>
         </div>
       </form>

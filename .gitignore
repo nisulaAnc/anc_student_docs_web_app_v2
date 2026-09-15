@@ -1,4 +1,15 @@
+# Local uploads and generated content
 uploads/
+
+# Environment and secrets
 .env
+.env.*
+!.env.example
 credentials.json
+
+# Composer dependencies
 /vendor/
+
+# General local noise
+*.log
+.DS_Store

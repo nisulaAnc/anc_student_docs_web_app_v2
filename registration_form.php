@@ -359,7 +359,7 @@ $agreementTemplateUrl = file_exists($agreementTemplatePath) ? 'Agreement_templat
           <input type="email" name="student_email" placeholder="Enter your student email" required>
         </div>
         <button class="btn btn-navy" type="submit">
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <!-- <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> -->
           Send OTP to My Email
         </button>
       </form>
@@ -387,7 +387,7 @@ $agreementTemplateUrl = file_exists($agreementTemplatePath) ? 'Agreement_templat
         <div class="btn-row">
           <button class="btn btn-navy" type="submit">
             Verify & Continue
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <!-- <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg> -->
           </button>
         </div>
       </form>
@@ -508,7 +508,7 @@ $agreementTemplateUrl = file_exists($agreementTemplatePath) ? 'Agreement_templat
         <div class="btn-row" style="margin-top:24px;">
           <button class="btn btn-green" type="submit">
             Submit Registration
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <!-- <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg> -->
           </button>
         </div>
       </form>
